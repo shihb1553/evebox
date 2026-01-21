@@ -72,3 +72,5 @@ directories = "5.0.1"
 gethostname = "0.4.3"
 tempfile = "3.9.0"
 inquire = "0.6.2"
+
+zmq = "0.10.0"
