@@ -8,8 +8,10 @@ pub mod processor;
 pub mod reader;
 pub mod userfilters;
 pub mod watcher;
+pub mod zmq;
 
 pub use eve::parse_eve_timestamp;
 pub use eve::Eve;
 pub use processor::Processor;
 pub use reader::EveReader;
+pub use zmq::ZmqProcessor;

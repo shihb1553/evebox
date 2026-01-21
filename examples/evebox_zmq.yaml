@@ -1,0 +1,98 @@
+http:
+  host: 0.0.0.0
+
+authentication:
+  # Default: false
+  # env: EVEBOX_AUTHENTICATION_REQUIRED
+  required: false
+
+# Database configuration.
+database:
+
+  # Database type: elasticsearch, sqlite.
+  type: sqlite
+
+  retention:
+    # Only keep events for the past 7 days.
+    # - SQLite only
+    # - Default 7 days
+    # - Set to 0 to disable
+    days: 7
+
+    # Maximum database size.
+    # - SQLite only
+    # - No default
+    #size: "20 GB"
+
+# The server can process a log file, eliminating the need for a
+# separate agent process if on the same machine.
+input:
+  # Toggle to disable the input without commenting it out.
+  enabled: true
+
+  # Suricata EVE file patterns to look for and read.
+  zmq_endpoints:
+    - "tcp://172.17.0.5:55000"
+
+  # Bookmark directory, as with the agent if the server can't write to
+  # the directory where the above log file is, you need to provide
+  # this.
+  #bookmark-directory: /var/lib/evebox
+
+  # Custom fields to add to the event. Only top level fields can be set,
+  # and only simple values (string, integer) can be set.
+  additional-fields:
+    # Set a host field. This will override the "host" field set by
+    # Suricata if the Suricata "sensor-name" option is set.
+    #host: "evebox-server"
+
+  # The event reader can also add the rule to alert events. Do not enable
+  # if you already have Suricata logging the rule.
+  #rules:
+  #  - /var/lib/suricata/rules/*.rules
+  #  - /usr/share/suricata/rules/*.rules
+  #  - /etc/suricata/rules/*.rules
+
+geoip:
+  disabled: false
+  # Path to the MaxMind database. This must be the version 2 database
+  # (http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz)
+  # File must be ungzipped.
+  #
+  # This is temporary, EveBox will eventually support downloading and
+  # updateing the geo database itself.
+  database: /usr/share/GeoIP/GeoLite2-Country.mmdb
+
+# Event services: links that will be provided on events to link to additonal
+# services.
+event-services:
+
+  # Custom service to link the rule in Scirius.
+  - type: custom
+    enabled: false
+    name: Scirius
+
+    # Only make available for alert types.
+    event-types:
+      - alert
+
+    # URL template. All eve values can be used.
+    url: https://10.16.1.179/rules/rule/{{alert.signature_id}}
+
+  # Custom service to link to Dumpy for full packet capture.
+  #
+  # This one has no event-types meaning its available for all event types.
+  - type: custom
+    enabled: false
+    name: Dumpy
+
+    # The URL template, {{raw}} expands to the raw eve event as a JSON
+    # string which is then url encoded. This format will give you a direct
+    # download.
+    url: "http://127.0.0.1:7000/fetch?query-type=event&event={{raw}}&spool=default"
+
+    # Or this URL will pre-populate a download form for you.
+    #url: "http://127.0.0.1:7000/?event={{raw}}"
+
+    # Open in new window. The default is the same window.
+    target: new
