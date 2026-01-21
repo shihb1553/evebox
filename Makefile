@@ -71,6 +71,7 @@ dist:
 	mkdir -p $(DIST_DIR)/examples
 	cp examples/agent.yaml $(DIST_DIR)/examples/
 	cp examples/evebox.yaml $(DIST_DIR)/examples/
+	cp examples/evebox_zmq.yaml $(DIST_DIR)/examples/
 	cd dist && zip -r $(DIST_NAME).zip $(DIST_NAME)
 
 fmt:
