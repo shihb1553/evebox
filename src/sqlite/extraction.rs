@@ -1,24 +1,14 @@
 use crate::config::Config;
 use anyhow::Result;
-use core::ops::Sub;
-use rusqlite::{params, Connection};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
-use tracing::{debug, error, info, trace};
-
-const DEFAULT_RANGE: usize = 7;
+use std::time::Duration;
+use tracing::{error, info, trace};
 
 /// How often to run the retention job.  Currently 60 seconds.
 const INTERVAL: u64 = 3;
-
-/// The time to sleep between retention runs if not all old events
-/// were deleted.
-const REPEAT_INTERVAL: u64 = 1;
-
-/// Number of events to delete per run.
-const LIMIT: usize = 1000;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FieldConfig {
@@ -35,7 +25,7 @@ pub fn start_extraction_task(config: Config, conn: Arc<Mutex<Connection>>) -> an
         .get_value::<ExtractionRules>("extraction_rules")
         .map_err(|err| anyhow::anyhow!("Bad extraction_rules configuration: {:?}", err))?
     {
-        info!("Starting extraction task");
+        trace!("Starting extraction task");
         tokio::task::spawn_blocking(|| {
             extraction_task(extraction_config, conn);
         });
@@ -46,38 +36,30 @@ pub fn start_extraction_task(config: Config, conn: Arc<Mutex<Connection>>) -> an
 
 fn extraction_task(config: ExtractionRules, conn: Arc<Mutex<rusqlite::Connection>>) {
     let default_delay = Duration::from_secs(INTERVAL);
-    let report_interval = Duration::from_secs(60);
-    let filename = conn
-        .lock()
-        .map(|conn| conn.path().map(|p| p.to_string()))
-        .unwrap();
 
     // Delay on startup.
     std::thread::sleep(default_delay);
 
     // 根据配置动态创建数据库
-    if extraction_create(config, &conn).is_err() {
+    if extraction_create(&config, &conn).is_err() {
         error!("Failed to create extraction tables");
     }
 
-    let mut last_report = Instant::now();
-    let mut count: usize = 0;
-
     loop {
-        let mut delay = default_delay;
+        let _ = extraction_handle(&config, &conn);
 
-        std::thread::sleep(delay);
+        std::thread::sleep(default_delay);
     }
 }
 
 fn extraction_create(
-    config: ExtractionRules,
+    config: &ExtractionRules,
     conn: &Arc<Mutex<rusqlite::Connection>>,
 ) -> Result<(), rusqlite::Error> {
     let mut conn = conn.lock().unwrap();
     let tx = conn.transaction()?;
 
-    info!("Creating extraction tables");
+    trace!("Creating extraction tables");
 
     for (table, rule) in config.iter() {
         let mut create_sql = format!(
@@ -90,7 +72,7 @@ fn extraction_create(
         }
         create_sql += ");";
 
-        info!("Creating table {}: {}", table, create_sql);
+        trace!("Creating table {}: {}", table, create_sql);
 
         tx.execute(create_sql.as_str(), [])?;
     }
@@ -100,59 +82,56 @@ fn extraction_create(
     Ok(())
 }
 
-fn delete_to_size(conn: &Arc<Mutex<Connection>>, filename: &str, bytes: usize) -> Result<usize> {
-    let file_size = crate::file::file_size(filename)? as usize;
-    if file_size < bytes {
-        trace!("Database less than max size of {} bytes", bytes);
-        return Ok(0);
-    }
+use serde_json::Value;
+fn extraction_handle(
+    config: &ExtractionRules,
+    conn: &Arc<Mutex<rusqlite::Connection>>,
+) -> Result<(), rusqlite::Error> {
+    let mut conn = conn.lock().unwrap();
+    let tx = conn.transaction()?;
 
-    let mut deleted = 0;
-    loop {
-        let file_size = crate::file::file_size(filename)? as usize;
-        if file_size < bytes {
-            return Ok(deleted);
+    info!("Handle extraction tables");
+
+    for (table, rule) in config.iter() {
+        let mut count = 0;
+
+        let mut stmt = tx.prepare(
+            "select rowid, source from events where escalated = 0 and source like '%?%'",
+        )?;
+        let mut rows = stmt.query([table]).unwrap();
+
+        while let Some(row) = rows.next()? { 
+            let row_id = row.get::<_, i64>(0)?;
+            let source = row.get::<_, String>(1)?;
+
+            let obj: Value = serde_json::from_str(&source).unwrap();
+
+            let mut create_sql = format!(
+                "insert into '{}' (id, create_time, update_time, match_cnt, user) values (?, ?, ?, ?, ?)",
+                table
+            );
+            for (field, field_config) in rule.iter() {
+                let value = obj.get(field);
+                if value.is_none() {
+                    continue;
+                }
+
+                let value = value.unwrap();
+
+                let value = match field_config.field_type.as_str() {
+                    "text" => value.to_string(),
+                    "integer" => value.to_string(),
+                    "real" => value.to_string(),
+                }
+            }
+
+            count += 1;
         }
 
-        trace!("Database file size of {} bytes is greater than max allowed size of {} bytes, deleting events",
-	       file_size, bytes);
-        deleted += delete_events(conn, 1000)?;
-        std::thread::sleep(Duration::from_millis(100));
+        tx.execute(create_sql.as_str(), [])?;
     }
-}
 
-fn delete_by_range(conn: &Arc<Mutex<Connection>>, range: usize, limit: usize) -> Result<usize> {
-    let now = time::OffsetDateTime::now_utc();
-    let period = std::time::Duration::from_secs(range as u64 * 86400);
-    let older_than = now.sub(period);
-    let mut conn = conn.lock().unwrap();
-    let timer = Instant::now();
-    trace!("Deleting events older than {range} days");
-    let tx = conn.transaction()?;
-    let sql = r#"DELETE FROM events
-                WHERE rowid IN
-                    (SELECT rowid FROM events WHERE timestamp < ? and escalated = 0 ORDER BY timestamp ASC LIMIT ?)"#;
-    let n = tx.execute(
-        sql,
-        params![older_than.unix_timestamp_nanos() as i64, limit as i64],
-    )?;
     tx.commit()?;
-    if n > 0 {
-        debug!(
-            "Deleted {n} events older than {} ({range} days) in {} ms",
-            &older_than,
-            timer.elapsed().as_millis()
-        );
-    }
-    Ok(n)
-}
 
-fn delete_events(conn: &Arc<Mutex<rusqlite::Connection>>, limit: usize) -> Result<usize> {
-    let sql = "delete from events where rowid in (select rowid from events where escalated = 0 order by timestamp asc limit ?)";
-    let conn = conn.lock().unwrap();
-    let timer = Instant::now();
-    let mut st = conn.prepare(sql)?;
-    let n = st.execute(params![limit])?;
-    trace!("Deleted {n} events in {} ms", timer.elapsed().as_millis());
-    Ok(n)
+    Ok(())
 }
