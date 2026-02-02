@@ -96,3 +96,13 @@ event-services:
 
     # Open in new window. The default is the same window.
     target: new
+
+extraction_rules:
+  # 规则ID: [要提取的字段列表]
+  "2210054": # TCP单流重传超10次
+    flow.src_ip:
+      type: TEXT
+      indexed: false
+    flow.dest_ip:
+      type: TEXT
+      indexed: false
