@@ -156,7 +156,7 @@ fn retention_task(config: RetentionConfig, conn: Arc<Mutex<rusqlite::Connection>
         }
 
         if last_report.elapsed() > report_interval {
-            info!("Events purged in last {:?}: {}", report_interval, count);
+            debug!("Events purged in last {:?}: {}", report_interval, count);
             count = 0;
             last_report = Instant::now();
         }

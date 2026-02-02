@@ -284,7 +284,6 @@ fn create_admin_user(context: &ServerContext) -> Result<(String, String)> {
 fn is_input_enabled(config: &Config) -> bool {
     config.args.contains_id("input.filename")
         || config.args.contains_id("input.paths")
-        || config.args.contains_id("input.zmq")
         || config.get_bool("input.enabled").unwrap_or(false)
 }
 
@@ -298,12 +297,6 @@ fn get_input_patterns(config: &Config) -> Result<Vec<String>> {
     if let Some(paths) = config.get_many::<String>("input.paths")? {
         for path in &paths {
             input_pattern_set.insert(path.clone());
-        }
-    }
-
-    if let Some(endpoints) = config.get_many::<String>("input.zmq_endpoints")? {
-        for endpoint in &endpoints {
-            input_pattern_set.insert(endpoint.clone());
         }
     }
 
