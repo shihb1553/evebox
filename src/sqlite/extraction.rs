@@ -106,10 +106,6 @@ fn extraction_handle(
 
             let obj: Value = serde_json::from_str(&source).unwrap();
 
-            let mut create_sql = format!(
-                "insert into '{}' (id, create_time, update_time, match_cnt, user) values (?, ?, ?, ?, ?)",
-                table
-            );
             for (field, field_config) in rule.iter() {
                 let value = obj.get(field);
                 if value.is_none() {
@@ -124,6 +120,38 @@ fn extraction_handle(
                     "real" => value.to_string(),
                 }
             }
+
+            // 查询table中是否有数据
+            let mut stmt = tx.prepare("select * from '{}' where id = ?", table)?;
+            let mut rows = stmt.query([row_id])?;
+            if rows.next()?.is_none() {
+                // 没有数据, 插入数据
+                let mut create_sql = format!(
+                    "insert into '{}' (id, create_time, update_time, match_cnt, user) values (?, ?, ?, ?, ?)",
+                    table
+                );
+                for (field, field_config) in rule.iter() {
+                    create_sql += format!(", '{}'", field).as_str();
+                }
+                create_sql += ");";
+                tx.execute(create_sql.as_str(), [row_id, "2021-01-01", "2021-01-01", 0, "admin"])?;
+            } else {
+                // 有数据, 更新数据
+                let mut update_sql = format!(
+                    "update '{}' set update_time = ?, match_cnt = ?, user = ?",
+                    table
+                );
+                for (field, field_config) in rule.iter() {
+                    update_sql += format!(", '{}' = ?", field).as_str();
+                }
+                update_sql += " where id = ?";
+            }
+
+            
+            let mut create_sql = format!(
+                "insert into '{}' (id, create_time, update_time, match_cnt, user) values (?, ?, ?, ?, ?)",
+                table
+            );
 
             count += 1;
         }
