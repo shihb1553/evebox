@@ -24,6 +24,9 @@ database:
     # - No default
     #size: "20 GB"
 
+  extraction:
+    interval: 600
+
 # The server can process a log file, eliminating the need for a
 # separate agent process if on the same machine.
 input:
@@ -103,4 +106,7 @@ extraction_rules:
     flow.src_ip:
       type: TEXT
     flow.dest_ip:
+      type: TEXT
+  "2221036": # HTTP响应包有重复header
+    http.hostname:
       type: TEXT

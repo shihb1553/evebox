@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tracing::{error, info, trace};
+use tracing::{error, trace};
 
 /// How often to run the retention job.  Currently 60 seconds.
 const INTERVAL: u64 = 60;
@@ -24,16 +24,20 @@ pub fn start_extraction_task(config: Config, conn: Arc<Mutex<Connection>>) -> an
         .map_err(|err| anyhow::anyhow!("Bad extraction_rules configuration: {:?}", err))?
     {
         trace!("Starting extraction task");
-        tokio::task::spawn_blocking(|| {
-            extraction_task(extraction_config, conn);
+        let delay = config
+            .get::<u64>("database.extraction.interval")?
+            .unwrap_or(INTERVAL);
+        tokio::task::spawn_blocking(move || {
+            extraction_task(extraction_config, conn, delay);
         });
     }
 
     Ok(())
 }
 
-fn extraction_task(config: ExtractionRules, conn: Arc<Mutex<rusqlite::Connection>>) {
+fn extraction_task(config: ExtractionRules, conn: Arc<Mutex<rusqlite::Connection>>, delay: u64) {
     let default_delay = Duration::from_secs(INTERVAL);
+    let delay = Duration::from_secs(delay);
 
     // Delay on startup.
     std::thread::sleep(default_delay);
@@ -51,7 +55,7 @@ fn extraction_task(config: ExtractionRules, conn: Arc<Mutex<rusqlite::Connection
             }
         }
 
-        std::thread::sleep(default_delay);
+        std::thread::sleep(delay);
     }
 }
 
@@ -91,6 +95,9 @@ fn extraction_handle(
 ) -> Result<(), rusqlite::Error> {
     let mut conn = conn.lock().unwrap();
 
+    // 开启日志以便调试
+    // conn.trace(Some(|sql| println!("执行的SQL: {}", sql)));
+
     trace!("Handle extraction tables");
 
     for (table, rule) in config.iter() {
@@ -113,19 +120,24 @@ fn extraction_handle(
         handle_sql += fields.join(", ").as_str();
         handle_sql += ") select count(*), ";
         handle_sql += filters.join(", ").as_str();
-        handle_sql += " from events where json_extract(events.source, '$.event_type') = 'alert' and json_extract(events.source, '$.alert.signature_id') = ? and escalated != 1 group by ";
+        handle_sql += &format!(" from events where json_extract(events.source, '$.event_type') = 'alert' and json_extract(events.source, '$.alert.signature_id') = {} and escalated != 1 group by ", table).to_string();
         handle_sql += groups.join(", ").as_str();
 
-        tx.execute(&handle_sql, [table])?;
+        let n = tx.execute(&handle_sql, [])?;
+        trace!("Inserted {} rows into {}", n, table);
 
         let delete_sql = format!(
-            "delete from events where json_extract(events.source, '$.event_type') = 'alert' and json_extract(events.source, '$.alert.signature_id') = ? and escalated != 1",
+            "delete from events where json_extract(events.source, '$.event_type') = 'alert' and json_extract(events.source, '$.alert.signature_id') = {} and escalated != 1",
+            table
         );
 
-        tx.execute(&delete_sql, [table])?;
+        let n = tx.execute(&delete_sql, [])?;
+        trace!("Deleted {} rows from events", n);
 
         tx.commit()?;
     }
+
+    // conn.trace(None);
 
     Ok(())
 }

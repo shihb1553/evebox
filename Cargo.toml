@@ -37,7 +37,7 @@ clap = { version = "4.5.4", features = ["env", "derive", "color"] }
 
 # These 3 somewhat depend on each other.
 deadpool-sqlite = { version = "0.7.0", features = ["rt_tokio_1"] }
-rusqlite = { version = "= 0.30", default-features = false, features = ["bundled", "serde_json"] }
+rusqlite = { version = "= 0.30", default-features = false, features = ["bundled", "serde_json", "trace"] }
 refinery = { version = "0.8.11", features = ["rusqlite"] }
 
 filetime = "0.2.23"
