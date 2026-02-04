@@ -110,3 +110,23 @@ extraction_rules:
   "2221036": # HTTP响应包有重复header
     http.hostname:
       type: TEXT
+  "2033078": # STUN请求使用非标端口
+    flow.dest_ip:
+      type: TEXT
+  "2200121": # 不支持的ETH协议，没有可提取的x信息，暂时只提取PCAP所在文件
+    capture_file:
+      type: TEXT
+  "2200074": # TCP校验和错误
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2016149": # 标准端口的STUN请求
+    flow.dest_ip:
+      type: TEXT
+  "2016150": # 标准端口的STUN响应
+    flow.src_ip:
+      type: TEXT
+  "2013926": # HTTP运行在443端口
+    http.hostname:
+      type: TEXT
