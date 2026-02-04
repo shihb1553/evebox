@@ -6,7 +6,7 @@ CREATE TABLE if NOT EXISTS '2210054' (
     create_time text default (datetime('now')),
     -- update_time text,
     match_cnt bigint,
-    user text default 'shihb',
+    user text default '',
     'flow.src_ip' text,
     'flow.dest_ip' text
     -- PRIMARY KEY (src_ip, dest_ip)

@@ -8,14 +8,12 @@ use std::time::Duration;
 use tracing::{error, info, trace};
 
 /// How often to run the retention job.  Currently 60 seconds.
-const INTERVAL: u64 = 3;
+const INTERVAL: u64 = 60;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FieldConfig {
     #[serde(rename = "type")]
     pub field_type: String,
-    #[serde(default)]
-    pub indexed: bool,
 }
 
 type ExtractionRules = HashMap<String, HashMap<String, FieldConfig>>;
@@ -46,7 +44,12 @@ fn extraction_task(config: ExtractionRules, conn: Arc<Mutex<rusqlite::Connection
     }
 
     loop {
-        let _ = extraction_handle(&config, &conn);
+        match extraction_handle(&config, &conn) {
+            Ok(_) => {}
+            Err(err) => {
+                error!("Error in extraction task: {}", err);
+            }
+        }
 
         std::thread::sleep(default_delay);
     }
@@ -63,7 +66,7 @@ fn extraction_create(
 
     for (table, rule) in config.iter() {
         let mut create_sql = format!(
-            "create table if not exists '{}' (id int primary key, create_time text, update_time text, match_cnt bigint, user text",
+            "create table if not exists '{}' (id integer primary key AUTOINCREMENT, create_time text default (datetime('now')), match_cnt bigint, user text default ''",
             table
         );
 
@@ -82,84 +85,47 @@ fn extraction_create(
     Ok(())
 }
 
-use serde_json::Value;
 fn extraction_handle(
     config: &ExtractionRules,
     conn: &Arc<Mutex<rusqlite::Connection>>,
 ) -> Result<(), rusqlite::Error> {
     let mut conn = conn.lock().unwrap();
-    let tx = conn.transaction()?;
 
-    info!("Handle extraction tables");
+    trace!("Handle extraction tables");
 
     for (table, rule) in config.iter() {
-        let mut count = 0;
+        let tx = conn.transaction()?;
 
-        let mut stmt = tx.prepare(
-            "select rowid, source from events where escalated = 0 and source like '%?%'",
-        )?;
-        let mut rows = stmt.query([table]).unwrap();
-
-        while let Some(row) = rows.next()? { 
-            let row_id = row.get::<_, i64>(0)?;
-            let source = row.get::<_, String>(1)?;
-
-            let obj: Value = serde_json::from_str(&source).unwrap();
-
-            for (field, field_config) in rule.iter() {
-                let value = obj.get(field);
-                if value.is_none() {
-                    continue;
-                }
-
-                let value = value.unwrap();
-
-                let value = match field_config.field_type.as_str() {
-                    "text" => value.to_string(),
-                    "integer" => value.to_string(),
-                    "real" => value.to_string(),
-                }
-            }
-
-            // 查询table中是否有数据
-            let mut stmt = tx.prepare("select * from '{}' where id = ?", table)?;
-            let mut rows = stmt.query([row_id])?;
-            if rows.next()?.is_none() {
-                // 没有数据, 插入数据
-                let mut create_sql = format!(
-                    "insert into '{}' (id, create_time, update_time, match_cnt, user) values (?, ?, ?, ?, ?)",
-                    table
-                );
-                for (field, field_config) in rule.iter() {
-                    create_sql += format!(", '{}'", field).as_str();
-                }
-                create_sql += ");";
-                tx.execute(create_sql.as_str(), [row_id, "2021-01-01", "2021-01-01", 0, "admin"])?;
-            } else {
-                // 有数据, 更新数据
-                let mut update_sql = format!(
-                    "update '{}' set update_time = ?, match_cnt = ?, user = ?",
-                    table
-                );
-                for (field, field_config) in rule.iter() {
-                    update_sql += format!(", '{}' = ?", field).as_str();
-                }
-                update_sql += " where id = ?";
-            }
-
-            
-            let mut create_sql = format!(
-                "insert into '{}' (id, create_time, update_time, match_cnt, user) values (?, ?, ?, ?, ?)",
-                table
-            );
-
-            count += 1;
+        let mut fields: Vec<String> = Vec::new();
+        let mut filters: Vec<String> = Vec::new();
+        let mut groups: Vec<String> = Vec::new();
+        for (field, _) in rule.iter() {
+            fields.push(format!("'{}'", field));
+            groups.push(format!("field{}", filters.len()));
+            filters.push(format!(
+                "json_extract(events.source, '$.{}') as field{}",
+                field,
+                filters.len()
+            ));
         }
 
-        tx.execute(create_sql.as_str(), [])?;
-    }
+        let mut handle_sql = format!("insert into '{}' (match_cnt, ", table);
+        handle_sql += fields.join(", ").as_str();
+        handle_sql += ") select count(*), ";
+        handle_sql += filters.join(", ").as_str();
+        handle_sql += " from events where json_extract(events.source, '$.event_type') = 'alert' and json_extract(events.source, '$.alert.signature_id') = ? and escalated != 1 group by ";
+        handle_sql += groups.join(", ").as_str();
 
-    tx.commit()?;
+        tx.execute(&handle_sql, [table])?;
+
+        let delete_sql = format!(
+            "delete from events where json_extract(events.source, '$.event_type') = 'alert' and json_extract(events.source, '$.alert.signature_id') = ? and escalated != 1",
+        );
+
+        tx.execute(&delete_sql, [table])?;
+
+        tx.commit()?;
+    }
 
     Ok(())
 }

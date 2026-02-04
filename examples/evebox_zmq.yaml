@@ -102,7 +102,5 @@ extraction_rules:
   "2210054": # TCP单流重传超10次
     flow.src_ip:
       type: TEXT
-      indexed: false
     flow.dest_ip:
       type: TEXT
-      indexed: false
