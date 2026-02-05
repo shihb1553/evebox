@@ -113,7 +113,7 @@ extraction_rules:
   "2033078": # STUN请求使用非标端口
     flow.dest_ip:
       type: TEXT
-  "2200121": # 不支持的ETH协议，没有可提取的x信息，暂时只提取PCAP所在文件
+  "2200121": # 不支持的ETH协议，没有可提取的信息，暂时只提取PCAP所在文件
     capture_file:
       type: TEXT
   "2200074": # TCP校验和错误
@@ -128,5 +128,52 @@ extraction_rules:
     flow.src_ip:
       type: TEXT
   "2013926": # HTTP运行在443端口
+    http.hostname:
+      type: TEXT
+  "2231001": # QUIC数据包解析错误
+    flow.dest_ip:
+      type: TEXT
+    quic.version:
+      type: TEXT
+  "2210020": # TCP ESTABLISHED状态出现窗口外的数据包
+    flow.dest_ip:
+      type: TEXT
+  "2260002": # 应用层协议仅单方向解析
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+    app_proto:
+      type: TEXT
+  "2048360": # DNS Over HTTP
+    flow.dest_ip:
+      type: TEXT
+  "2013504": # APT包管理流量
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+  "2210045": # TCP ACK包错误
+    flow.dest_ip:
+      type: TEXT
+  "2210044": # TCP TS错误
+    flow.dest_ip:
+      type: TEXT
+  "2210029": # TCP ESTABLISHED状态出现错误ACK包
+    flow.dest_ip:
+      type: TEXT
+  "2034912": # DNS Over HTTPS, dns.alidns.com
+    tls.ja3.hash:
+      type: TEXT
+    tls.ja3s.hash:
+      type: TEXT
+    tls.ja4:
+      type: TEXT
+  "2210010": # TCP 三次握手中出现错误的SEQ或ACK
+    flow.dest_ip:
+      type: TEXT
+  "2221033": # HTTP包含异常的Content-Encoding，引擎告警日志没有输出该字段，暂时不提取
+    flow.dest_ip:
+      type: TEXT
     http.hostname:
       type: TEXT
