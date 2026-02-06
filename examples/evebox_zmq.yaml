@@ -177,3 +177,91 @@ extraction_rules:
       type: TEXT
     http.hostname:
       type: TEXT
+  "2007994": # HTTP 空的UA
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+  "2052581": # 阿里云CDN域名，aliyuncs.com
+    flow.dest_ip:
+      type: TEXT
+  "2210038": # TCP 窗口外的FIN
+    flow.dest_ip:
+      type: TEXT
+  "2210030": # TCP FIN包ACK错误
+    flow.dest_ip:
+      type: TEXT
+  "2210046": # TCP 结束流的RST包ACK错误
+    flow.dest_ip:
+      type: TEXT
+  "2210016": # TCP 窗口外的CLOSEWAIT状态的FIN
+    flow.dest_ip:
+      type: TEXT
+  # "2052580": # 阿里云CDN域名的DNS请求
+  #   dns.query[0].rrname:
+  #     type: TEXT
+  "2221030": # HTTP Method以非可见字符结束
+    flow.dest_ip:
+      type: TEXT
+  "2221010": # HTTP 没有匹配的请求
+    flow.dest_ip:
+      type: TEXT
+  "2260001": # 应用层协议首包方向错误
+    flow.dest_ip:
+      type: TEXT
+  "2050737": # 腾讯云存储域名，myqcloud.com
+    flow.dest_ip:
+      type: TEXT
+    tls.sni:
+      type: TEXT
+  "2221035": # HTTP请求包有重复header
+    http.hostname:
+      type: TEXT
+  "2230009": # TLS error message encountered
+    flow.dest_ip:
+      type: TEXT
+    tls.version:
+      type: TEXT
+  "2221055": # HTTP请求缺少协议号
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2221002": # HTTP请求缺少冒号
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2260000": # 应用协议识别结果正反向不匹配
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+    app_proto:
+      type: TEXT
+    app_proto_tc:
+      type: TEXT
+    app_proto_ts:
+      type: TEXT
+  "2230002": # TLS invalid record type
+    flow.dest_ip:
+      type: TEXT
+    tls.version:
+      type: TEXT
+  "2229005": # MQTT 在连接建立之前收到消息
+    flow.dest_ip:
+      type: TEXT
+  "2210042": # TCP TIMEWAIT状态的ACK包SEQ错误
+    flow.dest_ip:
+      type: TEXT
+  "2231002": # QUIC加密数据段超长
+    flow.dest_ip:
+      type: TEXT
+    quic.version:
+      type: TEXT
+  "2229010": # MQTT 畸形数据包
+    flow.dest_ip:
+      type: TEXT
+  "2229001": # MQTT 未出现PUBLISH包
+    flow.dest_ip:
+      type: TEXT
