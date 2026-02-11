@@ -32,7 +32,7 @@ pub(crate) async fn handler(
         .map_err(|err| ApiError::BadRequest(format!("failed to decode event: {err}")))?;
     match form.what.as_ref() {
         "packet" => {
-            let linktype = if let Some(linktype) = &event["xpacket_info"]["linktype"].as_u64() {
+            let linktype = if let Some(linktype) = &event["packet_info"]["linktype"].as_u64() {
                 *linktype as u32
             } else {
                 warn!("No usable link-type in event, will use ethernet");
