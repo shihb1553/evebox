@@ -197,9 +197,9 @@ extraction_rules:
   "2210016": # TCP 窗口外的CLOSEWAIT状态的FIN
     flow.dest_ip:
       type: TEXT
-  # "2052580": # 阿里云CDN域名的DNS请求
-  #   dns.query[0].rrname:
-  #     type: TEXT
+  "2052580": # 阿里云CDN域名的DNS请求
+    dns.queries[0].rrname:
+      type: TEXT
   "2221030": # HTTP Method以非可见字符结束
     flow.dest_ip:
       type: TEXT
