@@ -265,3 +265,68 @@ extraction_rules:
   "2229001": # MQTT 未出现PUBLISH包
     flow.dest_ip:
       type: TEXT
+  "2027758": # DNS Query for .cc TLD
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2015633": # DYNAMIC_DNS Query to Abused Domain *.mooo.com
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2050736": # 腾讯云域名DNS Query myqcloud.com
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2035668": # 有道域名DNS Query .youdao.com
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2051624": # 百度网盘域名DNS Query pan.baidu.com
+    flow.src_ip:
+      type: TEXT
+  "2053281": # Abused Online Service Domain (syncthing.net)
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2018918": # possible Xiaomi phone data leakage DNS
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2036895": # Out-of-Band Interaction Domain in DNS Lookup (oastify.com)
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2037042": # External IP Lookup Domain in DNS Lookup (ipwho.is)
+    flow.src_ip:
+      type: TEXT
+  "2054168": # External IP Lookup Domain in DNS Lookup (ipinfo.io)
+    flow.src_ip:
+      type: TEXT
+  "2024527": # External IP Lookup Domain in DNS lookup (ipapi.co)
+    flow.src_ip:
+      type: TEXT
+  "2063062": # External IP Lookup Domain in DNS Lookup (ifconfig.me)
+    flow.src_ip:
+      type: TEXT
+  "2027863": # DNS Query to .biz TLD
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2012811": # DNS Query to a .tk domain - Likely Hostile
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2023883": # DNS Query to a *.top domain - Likely Hostile
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
