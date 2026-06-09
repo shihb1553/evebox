@@ -5,6 +5,7 @@ pub mod builder;
 pub mod configdb;
 pub mod connection;
 pub mod eventrepo;
+pub mod extraction;
 pub mod importer;
 pub(crate) mod info;
 pub mod retention;
