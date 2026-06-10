@@ -1,13 +1,13 @@
-use crate::eve::filters::EveFilter;
 use crate::importer::EventSink;
-use std::sync::Arc;
+
+use super::filters::EveFilterChain;
 
 const DEFAULT_BATCH_SIZE: usize = 10;
 
 pub struct ZmqProcessor {
     endpoint: String,
     pub importer: EventSink,
-    pub filters: Arc<Vec<EveFilter>>,
+    pub filter_chain: Option<EveFilterChain>,
 }
 
 impl ZmqProcessor {
@@ -15,7 +15,7 @@ impl ZmqProcessor {
         Self {
             endpoint: endpoint.to_string(),
             importer,
-            filters: Arc::new(Vec::new()),
+            filter_chain: None,
         }
     }
 
@@ -32,9 +32,10 @@ impl ZmqProcessor {
             let s = String::from_utf8_lossy(&msg);
             let mut record: serde_json::Value = serde_json::from_str(&s).unwrap();
 
-            for filter in &*self.filters {
-                filter.run(&mut record);
+            if let Some(filters) = &self.filter_chain {
+                filters.run(&mut record);
             }
+
             let commit = self.importer.submit(record).await.unwrap();
             if commit || self.importer.pending() >= DEFAULT_BATCH_SIZE {
                 let _ = self.importer.commit().await;

@@ -114,7 +114,9 @@ impl EvePatternWatcher {
 
     fn start_zmq(&self, endpoint: &str) {
         let mut zmq_processor = ZmqProcessor::new(endpoint, self.sink.clone());
-        zmq_processor.filters = Arc::new(self.filters.clone());
+        let mut filters = self.filters.clone();
+        filters.add_filter(AddAgentFilenameFilter::new(endpoint.to_string()));
+        zmq_processor.filter_chain = Some(filters);
         info!("Starting EVE processor for {}", endpoint);
         tokio::spawn(async move {
             zmq_processor.run().await;
