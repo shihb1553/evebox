@@ -4,7 +4,7 @@
 use crate::prelude::*;
 
 use super::filters::EveFilterChain;
-use super::{EveReader, Processor};
+use super::{EveReader, Processor, ZmqProcessor};
 use crate::eve::filters::AddAgentFilenameFilter;
 use crate::importer::EventSink;
 use std::time::Duration;
@@ -15,6 +15,7 @@ use std::{collections::HashSet, path::PathBuf};
 pub(crate) struct EvePatternWatcher {
     patterns: Vec<String>,
     filenames: HashSet<PathBuf>,
+    endpoints: HashSet<String>,
     sink: EventSink,
     filters: EveFilterChain,
     end: bool,
@@ -34,6 +35,7 @@ impl EvePatternWatcher {
         Self {
             patterns,
             filenames: HashSet::new(),
+            endpoints: HashSet::new(),
             sink,
             filters,
             end,
@@ -44,6 +46,18 @@ impl EvePatternWatcher {
 
     pub fn check(&mut self) {
         for pattern in &self.patterns {
+            // pattern 是以 tcp/pgm/ipc 开头，则是zmq的endpoint
+            if pattern.starts_with("tcp://")
+                || pattern.starts_with("pgm://")
+                || pattern.starts_with("ipc://")
+            {
+                if !self.endpoints.contains(pattern) {
+                    info!("Found EVE input endpoint {}", pattern);
+                    self.start_zmq(pattern);
+                    self.endpoints.insert(pattern.to_string());
+                }
+                continue;
+            }
             // This is for error reporting to the user, in the case
             // where the parent directory of the log files is not
             // readable by EveBox.
@@ -95,6 +109,17 @@ impl EvePatternWatcher {
         info!("Starting EVE processor for {}", filename.display());
         tokio::spawn(async move {
             processor.run().await;
+        });
+    }
+
+    fn start_zmq(&self, endpoint: &str) {
+        let mut zmq_processor = ZmqProcessor::new(endpoint, self.sink.clone());
+        let mut filters = self.filters.clone();
+        filters.add_filter(AddAgentFilenameFilter::new(endpoint.to_string()));
+        zmq_processor.filter_chain = Some(filters);
+        info!("Starting EVE processor for {}", endpoint);
+        tokio::spawn(async move {
+            zmq_processor.run().await;
         });
     }
 

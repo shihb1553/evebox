@@ -622,6 +622,13 @@ async fn configure_datastore(
             .await?;
             info!("Retention task started");
 
+            // Start extraction task.
+            sqlite::extraction::start_extraction_task(
+                config.clone(),
+                writer.clone(),
+            )
+            .await?;
+
             Ok(EventRepo::SQLite(eventstore))
         }
         _ => panic!("unsupported datastore"),
