@@ -83,6 +83,7 @@ tokio-util = { version = "0.7.20", features = ["io"] }
 async-trait = "0.1.92"
 same-file = "1.0.6"
 xz2 = { version = "0.1.7", features = ["static"] }
+zmq = "0.10.0"
 
 # Agent WebSocket control channel. Keep its rustls stack aligned with
 # axum's WebSocket support; the verifying connector uses native roots.

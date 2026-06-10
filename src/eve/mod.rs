@@ -9,7 +9,9 @@ pub(crate) mod reader;
 pub(crate) mod socket;
 pub(crate) mod spool;
 pub(crate) mod watcher;
+pub(crate) mod zmq;
 
 pub(crate) use eve::Eve;
 pub(crate) use processor::Processor;
 pub(crate) use reader::EveReader;
+pub(crate) use zmq::ZmqProcessor;

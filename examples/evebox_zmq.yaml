@@ -1,0 +1,425 @@
+http:
+  host: 0.0.0.0
+
+authentication:
+  # Default: false
+  # env: EVEBOX_AUTHENTICATION_REQUIRED
+  required: true
+
+# Database configuration.
+database:
+
+  # Database type: elasticsearch, sqlite.
+  type: sqlite
+
+  retention:
+    # Only keep events for the past 7 days.
+    # - SQLite only
+    # - Default 7 days
+    # - Set to 0 to disable
+    days: 7
+
+    # Maximum database size.
+    # - SQLite only
+    # - No default
+    #size: "20 GB"
+
+  extraction:
+    interval: 600
+
+# The server can process a log file, eliminating the need for a
+# separate agent process if on the same machine.
+input:
+  # Toggle to disable the input without commenting it out.
+  enabled: true
+
+  # Suricata EVE file patterns to look for and read.
+  paths:
+    - "tcp://127.0.0.1:55000"
+
+  # Bookmark directory, as with the agent if the server can't write to
+  # the directory where the above log file is, you need to provide
+  # this.
+  #bookmark-directory: /var/lib/evebox
+
+  # Custom fields to add to the event. Only top level fields can be set,
+  # and only simple values (string, integer) can be set.
+  additional-fields:
+    # Set a host field. This will override the "host" field set by
+    # Suricata if the Suricata "sensor-name" option is set.
+    #host: "evebox-server"
+
+  # The event reader can also add the rule to alert events. Do not enable
+  # if you already have Suricata logging the rule.
+  #rules:
+  #  - /var/lib/suricata/rules/*.rules
+  #  - /usr/share/suricata/rules/*.rules
+  #  - /etc/suricata/rules/*.rules
+
+geoip:
+  disabled: false
+  # Path to the MaxMind database. This must be the version 2 database
+  # (http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz)
+  # File must be ungzipped.
+  #
+  # This is temporary, EveBox will eventually support downloading and
+  # updateing the geo database itself.
+  database: /usr/share/GeoIP/GeoLite2-Country.mmdb
+
+# Event services: links that will be provided on events to link to additonal
+# services.
+event-services:
+
+  # Custom service to link the rule in Scirius.
+  - type: custom
+    enabled: false
+    name: Scirius
+
+    # Only make available for alert types.
+    event-types:
+      - alert
+
+    # URL template. All eve values can be used.
+    url: https://10.16.1.179/rules/rule/{{alert.signature_id}}
+
+  # Custom service to link to Dumpy for full packet capture.
+  #
+  # This one has no event-types meaning its available for all event types.
+  - type: custom
+    enabled: false
+    name: Dumpy
+
+    # The URL template, {{raw}} expands to the raw eve event as a JSON
+    # string which is then url encoded. This format will give you a direct
+    # download.
+    url: "http://127.0.0.1:7000/fetch?query-type=event&event={{raw}}&spool=default"
+
+    # Or this URL will pre-populate a download form for you.
+    #url: "http://127.0.0.1:7000/?event={{raw}}"
+
+    # Open in new window. The default is the same window.
+    target: new
+
+extraction_rules:
+  # 规则ID: [要提取的字段列表]
+  "2210054": # TCP单流重传超10次
+    flow.src_ip:
+      type: TEXT
+    flow.dest_ip:
+      type: TEXT
+  "2221036": # HTTP响应包有重复header
+    http.hostname:
+      type: TEXT
+  "2033078": # STUN请求使用非标端口
+    flow.dest_ip:
+      type: TEXT
+  "2200121": # 不支持的ETH协议，没有可提取的信息，暂时只提取PCAP所在文件
+    capture_file:
+      type: TEXT
+  "2200074": # TCP校验和错误
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2016149": # 标准端口的STUN请求
+    flow.dest_ip:
+      type: TEXT
+  "2016150": # 标准端口的STUN响应
+    flow.src_ip:
+      type: TEXT
+  "2013926": # HTTP运行在443端口
+    http.hostname:
+      type: TEXT
+  "2231001": # QUIC数据包解析错误
+    flow.dest_ip:
+      type: TEXT
+    quic.version:
+      type: TEXT
+  "2210020": # TCP ESTABLISHED状态出现窗口外的数据包
+    flow.dest_ip:
+      type: TEXT
+  "2260002": # 应用层协议仅单方向解析
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+    app_proto:
+      type: TEXT
+  "2048360": # DNS Over HTTP
+    flow.dest_ip:
+      type: TEXT
+  "2013504": # APT包管理流量
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+  "2210045": # TCP ACK包错误
+    flow.dest_ip:
+      type: TEXT
+  "2210044": # TCP TS错误
+    flow.dest_ip:
+      type: TEXT
+  "2210029": # TCP ESTABLISHED状态出现错误ACK包
+    flow.dest_ip:
+      type: TEXT
+  "2034912": # DNS Over HTTPS, dns.alidns.com
+    tls.ja3.hash:
+      type: TEXT
+    tls.ja3s.hash:
+      type: TEXT
+    tls.ja4:
+      type: TEXT
+  "2210010": # TCP 三次握手中出现错误的SEQ或ACK
+    flow.dest_ip:
+      type: TEXT
+  "2221033": # HTTP包含异常的Content-Encoding，引擎告警日志没有输出该字段，暂时不提取
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+  "2007994": # HTTP 空的UA
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+  "2052581": # 阿里云CDN域名，aliyuncs.com
+    flow.dest_ip:
+      type: TEXT
+  "2210038": # TCP 窗口外的FIN
+    flow.dest_ip:
+      type: TEXT
+  "2210030": # TCP FIN包ACK错误
+    flow.dest_ip:
+      type: TEXT
+  "2210046": # TCP 结束流的RST包ACK错误
+    flow.dest_ip:
+      type: TEXT
+  "2210016": # TCP 窗口外的CLOSEWAIT状态的FIN
+    flow.dest_ip:
+      type: TEXT
+  "2052580": # 阿里云CDN域名的DNS请求
+    dns.queries[0].rrname:
+      type: TEXT
+  "2221030": # HTTP Method以非可见字符结束
+    flow.dest_ip:
+      type: TEXT
+  "2221010": # HTTP 没有匹配的请求
+    flow.dest_ip:
+      type: TEXT
+  "2260001": # 应用层协议首包方向错误
+    flow.dest_ip:
+      type: TEXT
+  "2050737": # 腾讯云存储域名，myqcloud.com
+    flow.dest_ip:
+      type: TEXT
+    tls.sni:
+      type: TEXT
+  "2221035": # HTTP请求包有重复header
+    http.hostname:
+      type: TEXT
+  "2230009": # TLS error message encountered
+    flow.dest_ip:
+      type: TEXT
+    tls.version:
+      type: TEXT
+  "2221055": # HTTP请求缺少协议号
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2221002": # HTTP请求缺少冒号
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2260000": # 应用协议识别结果正反向不匹配
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+    app_proto:
+      type: TEXT
+    app_proto_tc:
+      type: TEXT
+    app_proto_ts:
+      type: TEXT
+  "2230002": # TLS invalid record type
+    flow.dest_ip:
+      type: TEXT
+    tls.version:
+      type: TEXT
+  "2229005": # MQTT 在连接建立之前收到消息
+    flow.dest_ip:
+      type: TEXT
+  "2210042": # TCP TIMEWAIT状态的ACK包SEQ错误
+    flow.dest_ip:
+      type: TEXT
+  "2231002": # QUIC加密数据段超长
+    flow.dest_ip:
+      type: TEXT
+    quic.version:
+      type: TEXT
+  "2229010": # MQTT 畸形数据包
+    flow.dest_ip:
+      type: TEXT
+  "2229001": # MQTT 未出现PUBLISH包
+    flow.dest_ip:
+      type: TEXT
+  "2027758": # DNS Query for .cc TLD
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2015633": # DYNAMIC_DNS Query to Abused Domain *.mooo.com
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2050736": # 腾讯云域名DNS Query myqcloud.com
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2035668": # 有道域名DNS Query .youdao.com
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2051624": # 百度网盘域名DNS Query pan.baidu.com
+    flow.src_ip:
+      type: TEXT
+  "2053281": # Abused Online Service Domain (syncthing.net)
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2018918": # possible Xiaomi phone data leakage DNS
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2036895": # Out-of-Band Interaction Domain in DNS Lookup (oastify.com)
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2037042": # External IP Lookup Domain in DNS Lookup (ipwho.is)
+    flow.src_ip:
+      type: TEXT
+  "2054168": # External IP Lookup Domain in DNS Lookup (ipinfo.io)
+    flow.src_ip:
+      type: TEXT
+  "2024527": # External IP Lookup Domain in DNS lookup (ipapi.co)
+    flow.src_ip:
+      type: TEXT
+  "2063062": # External IP Lookup Domain in DNS Lookup (ifconfig.me)
+    flow.src_ip:
+      type: TEXT
+  "2027863": # DNS Query to .biz TLD
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2012811": # DNS Query to a .tk domain - Likely Hostile
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2023883": # DNS Query to a *.top domain - Likely Hostile
+    flow.src_ip:
+      type: TEXT
+    dns.queries[0].rrname:
+      type: TEXT
+  "2003492": # Suspicious Mozilla User-Agent - Likely Fake (Mozilla/4/0)
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+    http.http_user_agent:
+      type: TEXT
+  "2200075": # UDPv4 invalid checksum
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2031071": # Microsoft Connection Test
+    flow.dest_ip:
+      type: TEXT
+  "2221034": # HTTP Request unrecognized authorization method
+    http.hostname:
+      type: TEXT
+  "2029340": # TLS Handshake Failure
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2210050": # STREAM reassembly overlap with different data
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2061257": # Deprecated Xiaomi Mi Browser User-Agent Observed
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+  "2210007": # STREAM 3way handshake SYNACK with wrong ack
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2210056": # STREAM bad window update
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2260003": # Applayer Protocol detection skipped
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2221014": # HTTP missing Host header
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2027390": # USER_AGENTS Microsoft Device Metadata Retrieval Client User-Agent
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+  "2014819": # Packed Executable Download
+    flow.dest_ip:
+      type: TEXT
+    files.filename:
+      type: TEXT
+  "2210059": # STREAM pkt seen on wrong thread
+    flow.dest_ip:
+      type: TEXT
+    flow.dest_port:
+      type: INTEGER
+  "2053436": # Suspicious Header Name In HTTP Request (U)
+    flow.dest_ip:
+      type: TEXT
+    http.hostname:
+      type: TEXT
+    metadata.flowbits[0]:
+      type: TEXT
+  "2228000": # SSH invalid banner
+    flow.src_ip:
+      type: TEXT
+  "2038967": # SSH-2.0-Go version string Observed in Network Traffic
+    flow.src_ip:
+      type: TEXT
+  "2200076": # ICMPv4 invalid checksum
+    flow.src_ip:
+      type: TEXT
+  "2230016": # TLS multiple SNI extensions
+    flow.src_ip:
+      type: TEXT
+    flow.dest_ip:
+      type: TEXT
+    tls.version:
+      type: TEXT
+    tls.sni:
+      type: TEXT
